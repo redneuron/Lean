@@ -480,6 +480,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
             // grab the relevant exchange hours
             var config = universe.Configuration;
+            var localStartTime = startTimeUtc.ConvertFromUtc(config.TimeZone);
+            var localEndTime = endTimeUtc.ConvertFromUtc(config.TimeZone);
 
             var exchangeHours = SecurityExchangeHoursProvider.FromDataFolder()
                 .GetExchangeHours(config.Market, null, config.SecurityType);
@@ -488,7 +490,16 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var security = new Security(exchangeHours, config, universe.SubscriptionSettings.Leverage);
 
             IEnumerator<BaseData> enumerator;
-            if (config.Type == typeof (CoarseFundamental))
+            
+            var userDefined = universe as UserDefinedUniverse;
+            if (userDefined != null)
+            {
+                // spoof a tick on the requested interval to trigger the universe selection function
+                enumerator = LinqExtensions.Range(localStartTime, localEndTime, dt => dt + userDefined.Interval)
+                    .Where(dt => security.Exchange.IsOpenDuringBar(dt, dt + userDefined.Interval, config.ExtendedMarketHours))
+                    .Select(dt => new Tick { Time = dt }).GetEnumerator();
+            }
+            else if (config.Type == typeof (CoarseFundamental))
             {
                 // since we're binding to the data queue exchange we'll need to let him
                 // know that we expect this data
@@ -510,9 +521,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             }
             else
             {
-                var localStartTime = startTimeUtc.ConvertFromUtc(config.TimeZone);
-                var localEndTime = endTimeUtc.ConvertFromUtc(config.TimeZone);
-
                 // define our data enumerator
                 var tradeableDates = Time.EachTradeableDay(security, localStartTime, localEndTime);
                 var reader = new SubscriptionDataReader(config, localStartTime, localEndTime, _resultHandler, tradeableDates, true);
