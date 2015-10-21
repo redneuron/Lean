@@ -1277,7 +1277,7 @@ namespace QuantConnect.Algorithm
                 // since universe selection proper is never invoked on this type of universe
                 var securityConfig = security.SubscriptionDataConfig;
                 var universeSymbol = UserDefinedUniverse.CreateSymbol(securityConfig.SecurityType, securityConfig.Market);
-                var uconfig = new SubscriptionDataConfig(securityConfig, symbol: universeSymbol, resolution: security.Resolution, isInternalFeed: true);
+                var uconfig = new SubscriptionDataConfig(securityConfig, symbol: universeSymbol, isInternalFeed: true, fillForward: false);
                 universe = new UserDefinedUniverse(uconfig,
                     new SubscriptionSettings(security.Resolution, security.Leverage, security.IsFillDataForward, security.IsExtendedMarketHours),
                     QuantConnect.Time.MaxTimeSpan,
