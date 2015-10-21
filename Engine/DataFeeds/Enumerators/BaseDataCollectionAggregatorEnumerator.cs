@@ -101,6 +101,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
 
                 // this data belongs in this collection, keep going until null or bad time
                 collection.Data.Add(_enumerator.Current);
+                _needsMoveNext = true;
             }
 
             Current = collection;
