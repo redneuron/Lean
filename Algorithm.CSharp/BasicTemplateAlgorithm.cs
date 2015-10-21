@@ -13,7 +13,9 @@
  * limitations under the License.
 */
 
+using System;
 using QuantConnect.Data;
+using QuantConnect.Data.UniverseSelection;
 
 namespace QuantConnect.Algorithm.CSharp
 {
@@ -22,29 +24,74 @@ namespace QuantConnect.Algorithm.CSharp
     /// </summary>
     public class BasicTemplateAlgorithm : QCAlgorithm
     {
-        /// <summary>
-        /// Initialise the data and resolution required, as well as the cash and start-end dates for your algorithm. All algorithms must initialized.
-        /// </summary>
+        //Initialize the data and resolution you require for your strategy:
         public override void Initialize()
         {
-            SetStartDate(2013, 10, 07);  //Set Start Date
-            SetEndDate(2013, 10, 11);    //Set End Date
-            SetCash(100000);             //Set Strategy Cash
-            // Find more symbols here: http://quantconnect.com/data
-            AddSecurity(SecurityType.Equity, "SPY", Resolution.Second);
+            UniverseSettings.Resolution = Resolution.Minute;
+
+            //Start and End Date range for the backtest:
+            SetStartDate(2013, 1, 1);
+            SetEndDate(DateTime.Now.Date.AddDays(-1));
+
+            //Cash allocation
+            SetCash(25000);
+
+            //Add as many securities as you like. All the data will be passed into the event handler:
+            AddSecurity(SecurityType.Forex, "EURUSD", Resolution.Second);
+
+            AddData<RemoteFileBaseData>("SPY", Resolution.Minute);
         }
 
-        /// <summary>
-        /// OnData event is the primary entry point for your algorithm. Each new data point will be pumped in here.
-        /// </summary>
-        /// <param name="data">Slice object keyed by symbol containing the stock data</param>
-        public override void OnData(Slice data)
+        //Data Event Handler: New data arrives here. "TradeBars" type is a dictionary of strings so you can access it by symbol.
+        public void OnData(Slice data)
         {
-            if (!Portfolio.Invested)
+            Debug(Time.ToString("o") + ": RemoteFileCallCount: " + RemoteFileBaseData.RemoteFileCallCount);
+            Debug(string.Join(",", data.Keys));
+
+            if (!Portfolio.HoldStock)
             {
-                SetHoldings("SPY", 1);
-                Debug("Purchased Stock");
+                //Order function places trades: enter the string symbol and the quantity you want:
+                SetHoldings("EURUSD", 1);
+                Log("This is a log message");
             }
+        }
+    }
+
+    /// <summary>
+    /// Custom data type that uses a remote file download
+    /// </summary>
+    public class RemoteFileBaseData : BaseData
+    {
+        public static int RemoteFileCallCount;
+
+        public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
+        {
+            var csv = line.Split(',');
+            if (csv[1].ToLower() != config.Symbol.ToLower())
+            {
+                // this row isn't for me
+                return null;
+            }
+
+            var time = QuantConnect.Time.UnixTimeStampToDateTime(double.Parse(csv[0])).ConvertFromUtc(config.TimeZone).Subtract(config.Increment);
+            return new RemoteFileBaseData
+            {
+                Symbol = config.Symbol,
+                Time = time,
+                EndTime = time.Add(config.Increment),
+                Value = decimal.Parse(csv[3])
+
+            };
+        }
+
+        public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
+        {
+            RemoteFileCallCount++;
+
+            // this file is only a few seconds worth of data, so it's quick to download
+            var remoteFileSource = @"http://www.quantconnect.com/live-test?type=file&symbols=" + config.Symbol;
+            remoteFileSource = @"http://beta.quantconnect.com/live-test?type=file&symbols=" + config.Symbol;
+            return new SubscriptionDataSource(remoteFileSource, SubscriptionTransportMedium.RemoteFile, FileFormat.Csv);
         }
     }
 }

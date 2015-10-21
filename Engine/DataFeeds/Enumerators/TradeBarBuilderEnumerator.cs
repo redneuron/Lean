@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using NodaTime;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
+using QuantConnect.Logging;
 
 namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
 {
@@ -54,13 +55,17 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <param name="data">The new data to be aggregated</param>
         public void ProcessData(BaseData data)
         {
+            Log.Debug("TradeBarEnumerator.ProcessData(): Begin");
+
             TradeBar working;
             var tick = data as Tick;
             var qty = tick == null ? 0 : tick.Quantity;
             var currentLocalTime = _timeProvider.GetUtcNow().ConvertFromUtc(_timeZone);
             if (!_queue.TryPeek(out working) || currentLocalTime >= working.EndTime)
             {
-                // the consumer took the working bar
+                Log.Debug("TradeBarEnumerator.ProcessData(): Create new working bar, working: " + working);
+
+                // the consumer took the working bar, or time ticked over into next bar
                 var marketPrice = data.Value;
                 var barStartTime = currentLocalTime.RoundDown(_barSize);
                 working = new TradeBar(barStartTime, data.Symbol, marketPrice, marketPrice, marketPrice, marketPrice, qty, _barSize);
@@ -71,6 +76,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                 // we're still within this bar size's time
                 working.Update(data.Value, tick == null ? data.Value : tick.BidPrice, tick == null ? data.Value : tick.AskPrice, qty);
             }
+
+            var count = _queue.Count;
+            if (count > 1) Log.Trace("TradeBarBuilderEnumerator.ProcessData(): QueueCount: " + count);
+
+            Log.Debug("TradeBarEnumerator.ProcessData(): End, _queue.Count: " + _queue.Count);
         }
 
         /// <summary>

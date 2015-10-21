@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using QuantConnect.Configuration;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
@@ -239,6 +240,17 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
             try
             {
+                var lastTriggerTime = DateTime.MinValue;
+                var timer = new System.Timers.Timer(1000);
+                timer.Enabled = true;
+                timer.AutoReset = true;
+                timer.Elapsed += (sender, args) =>
+                {
+                    if (lastTriggerTime == DateTime.MinValue) return;
+
+                    // set debugging enabled based on the last trigger time
+                    Log.DebuggingEnabled = DateTime.UtcNow - lastTriggerTime > TimeSpan.FromSeconds(5);
+                };
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
                     // perform sleeps to wake up on the second?
@@ -255,6 +267,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                         // dequeue data that is time stamped at or before this frontier
                         while (subscription.MoveNext() && subscription.Current != null)
                         {
+                            Log.Debug("LiveTradingDataFeed.Run(): Adding to cache: " + subscription.Current);
                             cache.Value.Add(subscription.Current);
                         }
 
@@ -283,7 +296,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     // emit on data or if we've elapsed a full second since last emit
                     if (data.Count != 0 || frontier >= nextEmit)
                     {
-                        Bridge.Add(TimeSlice.Create(frontier, _algorithm.TimeZone, _algorithm.Portfolio.CashBook, data, _changes));
+                        Bridge.Add(TimeSlice.Create(frontier, _algorithm.TimeZone, _algorithm.Portfolio.CashBook, data, _changes), _cancellationTokenSource.Token);
+                        lastTriggerTime = DateTime.UtcNow;
 
                         // force emitting every second
                         nextEmit = frontier.RoundDown(Time.OneSecond).Add(Time.OneSecond);

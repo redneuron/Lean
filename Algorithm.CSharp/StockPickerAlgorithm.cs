@@ -41,7 +41,7 @@ namespace QuantConnect.Algorithm.CSharp
             SetCash(100000);
 
             // add a custom universe data source
-            AddUniverse<NyseTopGainers>(SecurityType.Equity, "universe-nyse-top-gainers", Resolution.Daily, "usa", data =>
+            AddUniverse<NyseTopGainers>(SecurityType.Equity, "universe-nyse-top-gainers", Resolution.Minute, "usa", data =>
             {
                 // define our selection criteria
                 return from d in data
@@ -49,6 +49,14 @@ namespace QuantConnect.Algorithm.CSharp
                        where d.TopGainersRank <= 2
                        select d.Symbol;
             });
+
+            var timer = new System.Timers.Timer(TimeSpan.FromSeconds(1).TotalMilliseconds);
+            timer.Enabled = true;
+            timer.AutoReset = true;
+            timer.Elapsed += (sender, args) =>
+            {
+                Debug("TopGainers CallCount: " + NyseTopGainers.CallCount);
+            };
         }
 
         public override void OnData(Slice slice)
@@ -88,6 +96,8 @@ namespace QuantConnect.Algorithm.CSharp
         /// </summary>
         public class NyseTopGainers : BaseData
         {
+            public static int CallCount;
+
             public int TopGainersRank;
 
             public override DateTime EndTime
@@ -101,6 +111,8 @@ namespace QuantConnect.Algorithm.CSharp
             private DateTime lastDate;
             public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
             {
+                CallCount++;
+
                 if (isLiveMode)
                 {
                     // this is actually an html file, we'll handle the parsing accordingly
@@ -150,7 +162,7 @@ namespace QuantConnect.Algorithm.CSharp
                 var symbol = line.Substring(lastOpenParen + 1, lastCloseParen - lastOpenParen - 1);
                 return new NyseTopGainers
                 {
-                    Symbol = symbol, 
+                    Symbol = symbol,
                     Time = date,
                     // the html has these in order, so we'll keep incrementing until a new day
                     TopGainersRank = ++count

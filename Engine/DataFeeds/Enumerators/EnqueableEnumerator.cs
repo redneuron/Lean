@@ -51,8 +51,10 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <param name="data">The data to be enqueued</param>
         public void Enqueue(T data)
         {
+            Logging.Log.Debug("EnqueueableEnumerator.Enqueue(): Begin");
             if (_end) return;
             _queue.Enqueue(data);
+            Logging.Log.Debug("EnqueueableEnumerator.Enqueue(): End, _queue.Count: " + _queue.Count);
         }
 
         /// <summary>
@@ -69,6 +71,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             // should be emitted together, this is especially the case with universe
             // selection data, ~10k records
 
+            Logging.Log.Debug("EnqueueableEnumerator.EnqueueRange(): Take write lock");
             using (_lock.Write())
             {
                 foreach (var datum in data)
@@ -76,6 +79,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                     _queue.Enqueue(datum);
                 }
             }
+            Logging.Log.Debug("EnqueueableEnumerator.EnqueueRange(): Release write lock");
         }
 
         /// <summary>
@@ -96,6 +100,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <exception cref="T:System.InvalidOperationException">The collection was modified after the enumerator was created. </exception><filterpriority>2</filterpriority>
         public bool MoveNext()
         {
+            Logging.Log.Debug("EnqueueableEnumerator.EnqueueRange(): Take read lock");
             using (_lock.Read())
             {
                 if (!_queue.TryDequeue(out _current))
@@ -106,6 +111,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                 // even if we don't have data to return, we haven't technically
                 // passed the end of the collection, so always return true until
                 // the enumerator is explicitly disposed or ended
+                Logging.Log.Debug("EnqueueableEnumerator.EnqueueRange(): Release read lock");
                 return true;
             }
         }
