@@ -483,8 +483,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var localStartTime = startTimeUtc.ConvertFromUtc(config.TimeZone);
             var localEndTime = endTimeUtc.ConvertFromUtc(config.TimeZone);
 
-            var exchangeHours = SecurityExchangeHoursProvider.FromDataFolder()
-                .GetExchangeHours(config.Market, null, config.SecurityType);
+            var exchangeHours = SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours(config);
 
             // create a canonical security object
             var security = new Security(exchangeHours, config, universe.SubscriptionSettings.Leverage);
