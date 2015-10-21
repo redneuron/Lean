@@ -306,12 +306,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             }
             while (_subscriptionFactoryEnumerator != null);
 
-            if (_isLiveMode)
-            {
-                Current = null;
-                return true;
-            }
-
             _endOfStream = true;
             return false;
         }
