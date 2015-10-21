@@ -41,7 +41,7 @@ namespace QuantConnect.Algorithm.CSharp
             SetCash(100000);
 
             // add a custom universe data source
-            AddUniverse<NyseTopGainers>(SecurityType.Equity, "universe-nyse-top-gainers", Resolution.Daily, "usa", data =>
+            AddUniverse<NyseTopGainers>(SecurityType.Equity, "universe-nyse-top-gainers", Resolution.Minute, "usa", data =>
             {
                 // define our selection criteria
                 return from d in data
@@ -49,6 +49,14 @@ namespace QuantConnect.Algorithm.CSharp
                        where d.TopGainersRank <= 2
                        select d.Symbol;
             });
+
+            var timer = new System.Timers.Timer(TimeSpan.FromSeconds(1).TotalMilliseconds);
+            timer.Enabled = true;
+            timer.AutoReset = true;
+            timer.Elapsed += (sender, args) =>
+            {
+                Console.WriteLine("TopGainers CallCount: " + NyseTopGainers.CallCount);
+            };
         }
 
         public override void OnData(Slice slice)
@@ -88,19 +96,24 @@ namespace QuantConnect.Algorithm.CSharp
         /// </summary>
         public class NyseTopGainers : BaseData
         {
+            public static int CallCount;
+
             public int TopGainersRank;
+            public TimeSpan Period;
 
             public override DateTime EndTime
             {
                 // define end time as exactly 1 day after Time
-                get { return Time + QuantConnect.Time.OneDay; }
-                set { Time = value - QuantConnect.Time.OneDay; }
+                get { return Time + Period; }
+                set { Time = value - Period; }
             }
 
             private int count;
             private DateTime lastDate;
             public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
             {
+                CallCount++;
+
                 if (isLiveMode)
                 {
                     // this is actually an html file, we'll handle the parsing accordingly
@@ -121,7 +134,8 @@ namespace QuantConnect.Algorithm.CSharp
                     {
                         Time = DateTime.ParseExact(csv[0], "yyyyMMdd", null),
                         Symbol = csv[1],
-                        TopGainersRank = int.Parse(csv[2])
+                        TopGainersRank = int.Parse(csv[2]),
+                        Period = config.Increment
                     };
                 }
 
@@ -150,10 +164,11 @@ namespace QuantConnect.Algorithm.CSharp
                 var symbol = line.Substring(lastOpenParen + 1, lastCloseParen - lastOpenParen - 1);
                 return new NyseTopGainers
                 {
-                    Symbol = symbol, 
-                    Time = date,
+                    Symbol = symbol,
+                    Time = DateTime.UtcNow.ConvertFromUtc(TimeZones.NewYork).RoundDown(config.Increment),
                     // the html has these in order, so we'll keep incrementing until a new day
-                    TopGainersRank = ++count
+                    TopGainersRank = ++count,
+                    Period = config.Increment
                 };
             }
         }
