@@ -227,7 +227,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 return false;
             }
 
-            Log.Trace("LiveTradingDataFeed.RemovedSubscription(): Added " + security.Symbol);
+            Log.Trace("LiveTradingDataFeed.RemoveSubscription(): Removed " + security.Symbol);
 
             // keep track of security changes, we emit these to the algorithm
             // as notications, used in universe selection
@@ -395,23 +395,22 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 IEnumerator<BaseData> enumerator;
                 if (config.IsCustomData)
                 {
-                    // custom data uses backtest readers
-                    var tradeableDates = Time.EachTradeableDay(security, localStartTime, localEndTime);
-                    var reader = new SubscriptionDataReader(config, localStartTime, localEndTime, _resultHandler, tradeableDates, true, false);
+                    // each time we exhaust we'll new up this enumerator stack
+                    var refresher = new RefreshEnumerator<BaseData>(() =>
+                    {
+                        var sourceProvider = (BaseData)Activator.CreateInstance(config.Type);
+                        var currentLocalDate = DateTime.UtcNow.ConvertFromUtc(config.TimeZone).Date;
+                        var factory = new BaseDataSubscriptionFactory(config, currentLocalDate, true);
+                        var source = sourceProvider.GetSource(config, currentLocalDate, true);
+                        var factorEnumerator = factory.Read(source).GetEnumerator();
+                        return new FastForwardEnumerator(factorEnumerator, _timeProvider, config.TimeZone, config.Increment);
+                    });
 
-                    // apply fast forwarding, this is especially important for RemoteFile types that
-                    // can send in large chunks of old, irrelevant data
-                    var fastForward = new FastForwardEnumerator(reader, _timeProvider, config.TimeZone, config.Increment);
-
-                    // apply rate limits (1x per increment, max 30 minutes between calls)
-                    // TODO : Pull limits from config file?
+                    // rate limit the refreshing of the stack to the requested interval
                     var minimumTimeBetweenCalls = Math.Min(config.Increment.Ticks, TimeSpan.FromMinutes(30).Ticks);
-                    var rateLimit = new RateLimitEnumerator(fastForward, _timeProvider, TimeSpan.FromTicks(minimumTimeBetweenCalls));
-                
-                    // add the enumerator to the exchange
+                    var rateLimit = new RateLimitEnumerator(refresher, _timeProvider, TimeSpan.FromTicks(minimumTimeBetweenCalls));
                     _customExchange.AddEnumerator(rateLimit);
 
-                    // this enumerator just allows the exchange to directly dump data into the 'back' of the enumerator
                     var enqueable = new EnqueableEnumerator<BaseData>();
                     _customExchange.SetHandler(config.Symbol, data =>
                     {
@@ -520,14 +519,24 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             }
             else
             {
-                // define our data enumerator
-                var tradeableDates = Time.EachTradeableDay(security, localStartTime, localEndTime);
-                var reader = new SubscriptionDataReader(config, localStartTime, localEndTime, _resultHandler, tradeableDates, true);
-                var fastForward = new FastForwardEnumerator(reader, _timeProvider, config.TimeZone, config.Increment);
+                // each time we exhaust we'll new up this enumerator stack
+                var refresher = new RefreshEnumerator<BaseDataCollection>(() =>
+                {
+                    var sourceProvider = (BaseData)Activator.CreateInstance(config.Type);
+                    var currentLocalDate = DateTime.UtcNow.ConvertFromUtc(config.TimeZone).Date;
+                    var factory = new BaseDataSubscriptionFactory(config, currentLocalDate, true);
+                    var source = sourceProvider.GetSource(config, currentLocalDate, true);
+                    var factorEnumerator = factory.Read(source).GetEnumerator();
+                    var fastForward = new FastForwardEnumerator(factorEnumerator, _timeProvider, config.TimeZone, config.Increment);
+                    var timeZoneOffsetProvider = new TimeZoneOffsetProvider(config.TimeZone, startTimeUtc, endTimeUtc);
+                    var frontierAware = new FrontierAwareEnumerator(fastForward, _frontierTimeProvider, timeZoneOffsetProvider);
+                    return new BaseDataCollectionAggregatorEnumerator(frontierAware, config.Symbol);
+                });
+                
+                // rate limit the refreshing of the stack to the requested interval
                 var minimumTimeBetweenCalls = Math.Min(config.Increment.Ticks, TimeSpan.FromMinutes(30).Ticks);
-                var rateLimit = new RateLimitEnumerator(fastForward, _timeProvider, TimeSpan.FromTicks(minimumTimeBetweenCalls));
-                var aggregator = new BaseDataCollectionAggregatorEnumerator(rateLimit, config.Symbol);
-                _customExchange.AddEnumerator(aggregator);
+                var rateLimit = new RateLimitEnumerator(refresher, _timeProvider, TimeSpan.FromTicks(minimumTimeBetweenCalls));
+                _customExchange.AddEnumerator(rateLimit);
 
                 var enqueable = new EnqueableEnumerator<BaseData>();
                 _customExchange.SetHandler(config.Symbol, data =>
