@@ -18,9 +18,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
 using QuantConnect.Configuration;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
@@ -32,6 +30,7 @@ using QuantConnect.Logging;
 using QuantConnect.Packets;
 using QuantConnect.Securities;
 using QuantConnect.Util;
+using Timer = System.Timers.Timer;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
 {
@@ -241,15 +240,15 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             try
             {
                 var lastTriggerTime = DateTime.MinValue;
-                var timer = new System.Timers.Timer(1000);
+                var timer = new Timer(1000);
                 timer.Enabled = true;
                 timer.AutoReset = true;
                 timer.Elapsed += (sender, args) =>
                 {
                     if (lastTriggerTime == DateTime.MinValue) return;
 
-                    // set debugging enabled based on the last trigger time
-                    Log.DebuggingEnabled = DateTime.UtcNow - lastTriggerTime > TimeSpan.FromSeconds(5);
+                    // set debugging enabled based on the current memory usage
+                    Log.DebuggingEnabled = OS.TotalPhysicalMemoryUsed > 100;
                 };
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
@@ -575,17 +574,27 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <returns></returns>
         private IEnumerator<BaseData> GetNextTicksEnumerator()
         {
+            int count = 0;
+            var next = DateTime.UtcNow.AddSeconds(1);
             while (!_cancellationTokenSource.IsCancellationRequested)
             {
-                while (true)
+                int ticks = 0;
+                foreach (var data in _dataQueueHandler.GetNextTicks())
                 {
-                    int ticks = 0;
-                    foreach (var data in _dataQueueHandler.GetNextTicks())
-                    {
-                        ticks++;
-                        yield return data;
-                    }
-                    if (ticks == 0) Thread.Sleep(1);
+                    ticks++;
+                    count++;
+                    yield return data;
+                }
+                if (ticks == 0)
+                {
+                    if (Log.DebuggingEnabled) Log.Trace("LiveTradingDataFeed.GetNextTicksEnumerator(): Sleeping...");
+                    Thread.Sleep(1);
+                }
+                if (DateTime.UtcNow > next)
+                {
+                    Log.Trace("LiveTradingDataFeed.GetNextTicksEnumerator(): Ticks/sec: {0}", count);
+                    next = DateTime.UtcNow.AddSeconds(1);
+                    count = 0;
                 }
             }
         }

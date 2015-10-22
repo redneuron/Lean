@@ -93,11 +93,12 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         {
             TradeBar working;
 
-            Log.Debug("TradeBarEnumerator.MoveNext(): Begin QueueCount: " + _queue.Count);
-
             // check if there's a bar there and if its time to pull it off (i.e, done aggregation)
             if (_queue.TryPeek(out working) && working.EndTime.ConvertToUtc(_timeZone) <= _timeProvider.GetUtcNow())
             {
+
+                Log.Debug("TradeBarEnumerator.MoveNext(): Dequeue QueueCount: " + _queue.Count + " working.EndTime: " + working.EndTime);
+                
                 // working is good to go, set it to current
                 Current = working;
                 // remove working from the queue so we can start aggregating the next bar
@@ -105,9 +106,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             }
             else
             {
+                Log.Debug("TradeBarEnumerator.MoveNext(): Failed dequeue QueueCount: " + _queue.Count + " working.EndTime: " + working.EndTime);
                 Current = null;
             }
-
 
             Log.Debug("TradeBarEnumerator.MoveNext(): End QueueCount: " + _queue.Count + " Current: " + Current);
 
