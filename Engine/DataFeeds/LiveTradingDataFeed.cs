@@ -239,16 +239,19 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
             try
             {
-                var lastTriggerTime = DateTime.MinValue;
                 var timer = new Timer(1000);
                 timer.Enabled = true;
                 timer.AutoReset = true;
                 timer.Elapsed += (sender, args) =>
                 {
-                    if (lastTriggerTime == DateTime.MinValue) return;
-
                     // set debugging enabled based on the current memory usage
                     Log.DebuggingEnabled = OS.TotalPhysicalMemoryUsed > 100;
+
+                    var count = Bridge.Count;
+                    if (count > 1)
+                    {
+                        Log.Trace("LiveTradingDataFeed.BridgCount: {0}", count);
+                    }
                 };
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
@@ -272,17 +275,20 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
                         // if we have data, add it to be added to the bridge
                         if (cache.Value.Count > 0) data.Add(cache);
+                        if (cache.Value.Count > 1) Log.Trace("LiveTradingDataFeed.Run(): {0} Count: {1}", subscription.Configuration.Symbol, cache.Value.Count);
 
                         // we have new universe data to select based on
                         if (subscription.IsUniverseSelectionSubscription && cache.Value.Count > 0)
                         {
                             var universe = subscription.Universe;
 
+                            Log.Trace("LiveTradingDataFeed.Run(): Waiting for bridge to empty for universe selecton... ");
                             // always wait for other thread to sync up
                             if (!Bridge.Wait(Timeout.Infinite, _cancellationTokenSource.Token))
                             {
                                 break;
                             }
+                            Log.Trace("LiveTradingDataFeed.Run(): Finished waiting... ");
 
                             // fire the universe selection event
                             OnUniverseSelection(universe, subscription.Configuration, frontier, cache.Value);
@@ -295,8 +301,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     // emit on data or if we've elapsed a full second since last emit
                     if (data.Count != 0 || frontier >= nextEmit)
                     {
+                        if (data.Count == 0) Log.Trace("LiveTradingDataFeed.Run(): Firing blanks", true);
+
                         Bridge.Add(TimeSlice.Create(frontier, _algorithm.TimeZone, _algorithm.Portfolio.CashBook, data, _changes), _cancellationTokenSource.Token);
-                        lastTriggerTime = DateTime.UtcNow;
 
                         // force emitting every second
                         nextEmit = frontier.RoundDown(Time.OneSecond).Add(Time.OneSecond);

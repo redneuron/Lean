@@ -96,6 +96,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             // check if there's a bar there and if its time to pull it off (i.e, done aggregation)
             if (_queue.TryPeek(out working) && working.EndTime.ConvertToUtc(_timeZone) <= _timeProvider.GetUtcNow())
             {
+                var count = _queue.Count;
+                if (count > 1) Log.Trace("TradeBarBuilderEnumerator.ProcessData(): QueueCount: " + count + " Symbol: " + working.Symbol.Value, true);
 
                 Log.Debug("TradeBarEnumerator.MoveNext(): Dequeue QueueCount: " + _queue.Count + " working.EndTime: " + working.EndTime);
                 
