@@ -108,7 +108,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             }
             else
             {
-                Log.Debug("TradeBarEnumerator.MoveNext(): Failed dequeue QueueCount: " + _queue.Count + " working.EndTime: " + working.EndTime);
+                Log.Debug("TradeBarEnumerator.MoveNext(): Failed dequeue QueueCount: " + _queue.Count);
                 Current = null;
             }
 

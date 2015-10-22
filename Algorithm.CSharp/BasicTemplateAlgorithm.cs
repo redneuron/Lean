@@ -6,6 +6,7 @@ using System.Reflection;
 using QuantConnect.Algorithm;
 using QuantConnect.Data.Market;
 using QuantConnect.Interfaces;
+using QuantConnect.Securities;
 using QuantConnect.Securities.Forex;
 using QuantConnect.Util;
 
@@ -84,10 +85,12 @@ namespace QuantConnect
         //Data Event Handler: New data arrives here. "TradeBars" type is a dictionary of strings so you can access it by symbol.
         public void OnData(TradeBars data)
         {
-            TradeBar eurusd;
-            if (data.TryGetValue("EURUSD", out eurusd))
+            Security eurusd;
+            if (Securities.TryGetValue("EURUSD", out eurusd))
             {
                 Plot("EURUSD", "Price", eurusd.Close);
+                if (eurusd.Cache.GetData() is TradeBar)
+                    Plot("EURUSD_V", "Volume", ((TradeBar)eurusd.Cache.GetData()).Volume);
             }
 
             var delta = (DateTime.UtcNow - UtcTime).TotalMilliseconds.ToString("00.0000");

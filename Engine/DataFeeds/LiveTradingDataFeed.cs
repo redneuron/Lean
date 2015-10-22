@@ -319,6 +319,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             catch (Exception err)
             {
                 Log.Error(err);
+                _algorithm.RunTimeError = err;
             }
             IsActive = false;
         }
