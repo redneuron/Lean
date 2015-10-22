@@ -60,13 +60,13 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             TradeBar working;
             var tick = data as Tick;
             var qty = tick == null ? 0 : tick.Quantity;
-            var currentLocalTime = _timeProvider.GetUtcNow().ConvertFromUtc(_timeZone);
-            if (!_queue.TryPeek(out working) || currentLocalTime >= working.EndTime)
+            if (!_queue.TryPeek(out working))
             {
                 Log.Debug("TradeBarEnumerator.ProcessData(): Create new working bar, working: " + working);
 
                 // the consumer took the working bar, or time ticked over into next bar
                 var marketPrice = data.Value;
+                var currentLocalTime = _timeProvider.GetUtcNow().ConvertFromUtc(_timeZone);
                 var barStartTime = currentLocalTime.RoundDown(_barSize);
                 working = new TradeBar(barStartTime, data.Symbol, marketPrice, marketPrice, marketPrice, marketPrice, qty, _barSize);
                 _queue.Enqueue(working);
@@ -78,7 +78,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             }
 
             var count = _queue.Count;
-            if (count > 1) Log.Trace("TradeBarBuilderEnumerator.ProcessData(): QueueCount: " + count);
+            if (count > 1) Log.Trace("TradeBarBuilderEnumerator.ProcessData(): QueueCount: " + count + " Symbol: " + data.Symbol.Value, true);
 
             Log.Debug("TradeBarEnumerator.ProcessData(): End, _queue.Count: " + _queue.Count);
         }
@@ -93,6 +93,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         {
             TradeBar working;
 
+            Log.Debug("TradeBarEnumerator.MoveNext(): Begin QueueCount: " + _queue.Count);
+
             // check if there's a bar there and if its time to pull it off (i.e, done aggregation)
             if (_queue.TryPeek(out working) && working.EndTime.ConvertToUtc(_timeZone) <= _timeProvider.GetUtcNow())
             {
@@ -105,6 +107,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             {
                 Current = null;
             }
+
+
+            Log.Debug("TradeBarEnumerator.MoveNext(): End QueueCount: " + _queue.Count + " Current: " + Current);
 
             // IEnumerator contract dictates that we return true unless we're actually
             // finished with the 'collection' and since this is live, we're never finished
