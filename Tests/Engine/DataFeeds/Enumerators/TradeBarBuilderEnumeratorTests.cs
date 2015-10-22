@@ -76,36 +76,38 @@ namespace QuantConnect.Tests.Engine.DataFeeds.Enumerators
             Assert.AreEqual(ticks.Sum(x => x.Quantity), bar.Volume);
         }
 
-        [Test]
-        public void CreatesNewBarWhenBarSizeElapses()
-        {
-            var timeProvider = new ManualTimeProvider();
-            var enumerator = new TradeBarBuilderEnumerator(Time.OneSecond, TimeZones.Utc, timeProvider);
+        // Feature removed, depends on calls to MoveNext to mark the end of a bar
 
-            // noon new york time
-            var startTime = new DateTime(2015, 10, 08, 12, 0, 0);
-            timeProvider.SetCurrentTime(startTime);
+        //[Test]
+        //public void CreatesNewBarWhenBarSizeElapses()
+        //{
+        //    var timeProvider = new ManualTimeProvider();
+        //    var enumerator = new TradeBarBuilderEnumerator(Time.OneSecond, TimeZones.Utc, timeProvider);
 
-            enumerator.ProcessData(new Tick{Time = startTime});
+        //    // noon new york time
+        //    var startTime = new DateTime(2015, 10, 08, 12, 0, 0);
+        //    timeProvider.SetCurrentTime(startTime);
 
-            Assert.IsTrue(enumerator.MoveNext());
-            Assert.IsNull(enumerator.Current);
+        //    enumerator.ProcessData(new Tick{Time = startTime});
 
-            timeProvider.AdvanceSeconds(0.99);
+        //    Assert.IsTrue(enumerator.MoveNext());
+        //    Assert.IsNull(enumerator.Current);
 
-            enumerator.ProcessData(new Tick {Time = timeProvider.GetUtcNow()});
+        //    timeProvider.AdvanceSeconds(0.99);
 
-            Assert.IsTrue(enumerator.MoveNext());
-            Assert.IsNull(enumerator.Current);
+        //    enumerator.ProcessData(new Tick {Time = timeProvider.GetUtcNow()});
 
-            timeProvider.SetCurrentTime(startTime.AddSeconds(1));
+        //    Assert.IsTrue(enumerator.MoveNext());
+        //    Assert.IsNull(enumerator.Current);
 
-            // the second just ticked over, so it shouldn't include this tick when we move next
-            enumerator.ProcessData(new Tick {Time = timeProvider.GetUtcNow(), Quantity = 1});
+        //    timeProvider.SetCurrentTime(startTime.AddSeconds(1));
 
-            Assert.IsTrue(enumerator.MoveNext());
-            Assert.IsNotNull(enumerator.Current);
-            Assert.AreEqual(0, ((TradeBar)enumerator.Current).Volume);
-        }
+        //    // the second just ticked over, so it shouldn't include this tick when we move next
+        //    enumerator.ProcessData(new Tick {Time = timeProvider.GetUtcNow(), Quantity = 1});
+
+        //    Assert.IsTrue(enumerator.MoveNext());
+        //    Assert.IsNotNull(enumerator.Current);
+        //    Assert.AreEqual(0, ((TradeBar)enumerator.Current).Volume);
+        //}
     }
 }
