@@ -20,7 +20,6 @@ using System.Collections.Generic;
 using NodaTime;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
-using QuantConnect.Logging;
 
 namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
 {
@@ -55,15 +54,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <param name="data">The new data to be aggregated</param>
         public void ProcessData(BaseData data)
         {
-            Log.Debug("TradeBarEnumerator.ProcessData(): Begin");
-
             TradeBar working;
             var tick = data as Tick;
             var qty = tick == null ? 0 : tick.Quantity;
             if (!_queue.TryPeek(out working))
             {
-                Log.Debug("TradeBarEnumerator.ProcessData(): Create new working bar, working: " + working);
-
                 // the consumer took the working bar, or time ticked over into next bar
                 var marketPrice = data.Value;
                 var currentLocalTime = _timeProvider.GetUtcNow().ConvertFromUtc(_timeZone);
@@ -76,11 +71,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                 // we're still within this bar size's time
                 working.Update(data.Value, tick == null ? data.Value : tick.BidPrice, tick == null ? data.Value : tick.AskPrice, qty);
             }
-
-            var count = _queue.Count;
-            if (count > 1) Log.Trace("TradeBarBuilderEnumerator.ProcessData(): QueueCount: " + count + " Symbol: " + data.Symbol.Value, true);
-
-            Log.Debug("TradeBarEnumerator.ProcessData(): End, _queue.Count: " + _queue.Count);
         }
 
         /// <summary>
@@ -96,11 +86,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             // check if there's a bar there and if its time to pull it off (i.e, done aggregation)
             if (_queue.TryPeek(out working) && working.EndTime.ConvertToUtc(_timeZone) <= _timeProvider.GetUtcNow())
             {
-                var count = _queue.Count;
-                if (count > 1) Log.Trace("TradeBarBuilderEnumerator.ProcessData(): QueueCount: " + count + " Symbol: " + working.Symbol.Value, true);
-
-                Log.Debug("TradeBarEnumerator.MoveNext(): Dequeue QueueCount: " + _queue.Count + " working.EndTime: " + working.EndTime);
-                
                 // working is good to go, set it to current
                 Current = working;
                 // remove working from the queue so we can start aggregating the next bar
@@ -108,11 +93,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             }
             else
             {
-                Log.Debug("TradeBarEnumerator.MoveNext(): Failed dequeue QueueCount: " + _queue.Count);
                 Current = null;
             }
-
-            Log.Debug("TradeBarEnumerator.MoveNext(): End QueueCount: " + _queue.Count + " Current: " + Current);
 
             // IEnumerator contract dictates that we return true unless we're actually
             // finished with the 'collection' and since this is live, we're never finished

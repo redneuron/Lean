@@ -17,8 +17,6 @@
 using System;
 using System.Collections.Generic;
 using QuantConnect.Data;
-using QuantConnect.Data.Market;
-using QuantConnect.Logging;
 using QuantConnect.Securities;
 using QuantConnect.Util;
 
@@ -78,7 +76,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <returns>True when a new fill forward piece of data was produced and should be emitted by this enumerator</returns>
         protected override bool RequiresFillForwardData(TimeSpan fillForwardResolution, BaseData previous, BaseData next, out BaseData fillForward)
         {
-            Log.Debug("LiveFillForwardEnumerator.RequiresFillForwardData(): previous.EndTime: " + (previous).EndTime + " next.EndTime: " + (next ?? new Tick()).EndTime);
             fillForward = null;
             var nextExpectedDataPointTime = (previous.EndTime + fillForwardResolution);
             if (next != null)
@@ -86,14 +83,12 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                 // if not future data, just return the 'next'
                 if (next.EndTime <= nextExpectedDataPointTime)
                 {
-                    Log.Debug("LiveFillForwardEnumerator.RequiresFillForwardData(): Returns false");
                     return false;
                 }
                 // next is future data, fill forward in between
                 var clone = previous.Clone(true);
                 clone.Time = previous.Time + fillForwardResolution;
                 fillForward = clone;
-                Log.Debug("LiveFillForwardEnumerator.RequiresFillForwardData(): Returns true, fillForward.EndTime: " + fillForward.EndTime);
                 return true;
             }
 
@@ -104,11 +99,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                 var clone = previous.Clone(true);
                 clone.Time = previous.Time + fillForwardResolution;
                 fillForward = clone;
-                Log.Debug("LiveFillForwardEnumerator.RequiresFillForwardData(): Returns true, fillForward.EndTime: " + fillForward.EndTime);
                 return true;
             }
 
-            Log.Debug("LiveFillForwardEnumerator.RequiresFillForwardData(): Returns false");
             return false;
         }
     }

@@ -90,7 +90,7 @@ namespace QuantConnect
             {
                 Plot("EURUSD", "Price", eurusd.Close);
                 if (eurusd.Cache.GetData() is TradeBar)
-                    Plot("EURUSD_V", "Volume", ((TradeBar)eurusd.Cache.GetData()).Volume);
+                    Plot("EURUSD_V", "Volume", (decimal) ((TradeBar)eurusd.Cache.GetData()).Volume);
             }
 
             var delta = (DateTime.UtcNow - UtcTime).TotalMilliseconds.ToString("00.0000");

@@ -93,7 +93,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <exception cref="T:System.InvalidOperationException">The collection was modified after the enumerator was created. </exception><filterpriority>2</filterpriority>
         public bool MoveNext()
         {
-            Log.Debug("SubscriptionFilterEnumerator.MoveNext(): Begin");
             while (_enumerator.MoveNext())
             {
                 var current = _enumerator.Current;
@@ -104,7 +103,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                         // execute user data filters
                         if (current.DataType != MarketDataType.Auxiliary && !_dataFilter.Filter(_security, current))
                         {
-                            Log.Debug("SubscriptionFilterEnumerator.MoveNext(): Continue - filtered");
                             continue;
                         }
                     }
@@ -117,24 +115,20 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                     // verify that the bar is within the exchange's market hours
                     if (current.DataType != MarketDataType.Auxiliary && !_exchange.IsOpenDuringBar(current.Time, current.EndTime, _security.IsExtendedMarketHours))
                     {
-                        Log.Debug("SubscriptionFilterEnumerator.MoveNext(): Continue - exchange is not open");
                         continue;
                     }
 
                     // make sure we haven't passed the end
                     if (current.Time > _endTime)
                     {
-                        Log.Debug("SubscriptionFilterEnumerator.MoveNext(): Return false");
                         return false;
                     }
                 }
 
                 Current = current;
-                Log.Debug("SubscriptionFilterEnumerator.MoveNext(): Return true Current: " + current);
                 return true;
             }
 
-            Log.Debug("SubscriptionFilterEnumerator.MoveNext(): Return false");
             return false;
         }
 

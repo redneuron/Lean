@@ -57,8 +57,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
         /// <exception cref="T:System.InvalidOperationException">The collection was modified after the enumerator was created. </exception><filterpriority>2</filterpriority>
         public bool MoveNext()
         {
-            Logging.Log.Debug("FrontierAwareEnumerator.MoveNext(): Begin");
-
             var underlyingCurrent = _enumerator.Current;
             var frontier = _timeProvider.GetUtcNow();
             var localFrontier = new DateTime(frontier.Ticks + _offsetProvider.GetOffsetTicks(frontier));
@@ -78,7 +76,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
                     _current = null;
                     _needsMoveNext = false;
                 }
-                Logging.Log.Debug("FrontierAwareEnumerator.MoveNext(): End: Current: " + _current + " needsMoveNext: " + _needsMoveNext + " returning true");
                 return true;
             }
 
@@ -87,7 +84,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
             {
                 _needsMoveNext = true;
                 _current = null;
-                Logging.Log.Debug("FrontierAwareEnumerator.MoveNext(): End: Current: " + _current + " needsMoveNext: " + _needsMoveNext + " returning false");
                 return false;
             }
 
@@ -106,7 +102,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds.Enumerators
 
             // technically we still need to return true since the iteration is not completed,
             // however, Current may be null follow a true result here
-            Logging.Log.Debug("FrontierAwareEnumerator.MoveNext(): End: Current: " + _current + " needsMoveNext: " + _needsMoveNext + " returning true");
             return true;
         }
 

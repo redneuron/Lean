@@ -30,7 +30,6 @@ using QuantConnect.Logging;
 using QuantConnect.Packets;
 using QuantConnect.Securities;
 using QuantConnect.Util;
-using Timer = System.Timers.Timer;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
 {
@@ -239,20 +238,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
             try
             {
-                var timer = new Timer(1000);
-                timer.Enabled = true;
-                timer.AutoReset = true;
-                timer.Elapsed += (sender, args) =>
-                {
-                    // set debugging enabled based on the current memory usage
-                    Log.DebuggingEnabled = OS.TotalPhysicalMemoryUsed > 100;
-
-                    var count = Bridge.Count;
-                    if (count > 1)
-                    {
-                        Log.Trace("LiveTradingDataFeed.BridgCount: {0}", count);
-                    }
-                };
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
                     // perform sleeps to wake up on the second?
@@ -269,26 +254,22 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                         // dequeue data that is time stamped at or before this frontier
                         while (subscription.MoveNext() && subscription.Current != null)
                         {
-                            Log.Debug("LiveTradingDataFeed.Run(): Adding to cache: " + subscription.Current);
                             cache.Value.Add(subscription.Current);
                         }
 
                         // if we have data, add it to be added to the bridge
                         if (cache.Value.Count > 0) data.Add(cache);
-                        if (cache.Value.Count > 1) Log.Trace("LiveTradingDataFeed.Run(): {0} Count: {1}", subscription.Configuration.Symbol, cache.Value.Count);
 
                         // we have new universe data to select based on
                         if (subscription.IsUniverseSelectionSubscription && cache.Value.Count > 0)
                         {
                             var universe = subscription.Universe;
 
-                            Log.Trace("LiveTradingDataFeed.Run(): Waiting for bridge to empty for universe selecton... ");
                             // always wait for other thread to sync up
                             if (!Bridge.Wait(Timeout.Infinite, _cancellationTokenSource.Token))
                             {
                                 break;
                             }
-                            Log.Trace("LiveTradingDataFeed.Run(): Finished waiting... ");
 
                             // fire the universe selection event
                             OnUniverseSelection(universe, subscription.Configuration, frontier, cache.Value);
@@ -301,8 +282,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     // emit on data or if we've elapsed a full second since last emit
                     if (data.Count != 0 || frontier >= nextEmit)
                     {
-                        if (data.Count == 0) Log.Trace("LiveTradingDataFeed.Run(): Firing blanks", true);
-
                         Bridge.Add(TimeSlice.Create(frontier, _algorithm.TimeZone, _algorithm.Portfolio.CashBook, data, _changes), _cancellationTokenSource.Token);
 
                         // force emitting every second
@@ -344,7 +323,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             if (!_cancellationTokenSource.IsCancellationRequested)
             {
                 _cancellationTokenSource.Cancel();
-                Bridge.Dispose();
+                if (Bridge != null) Bridge.Dispose();
             }
         }
 
@@ -582,28 +561,15 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <returns></returns>
         private IEnumerator<BaseData> GetNextTicksEnumerator()
         {
-            int count = 0;
-            var next = DateTime.UtcNow.AddSeconds(1);
             while (!_cancellationTokenSource.IsCancellationRequested)
             {
                 int ticks = 0;
                 foreach (var data in _dataQueueHandler.GetNextTicks())
                 {
                     ticks++;
-                    count++;
                     yield return data;
                 }
-                if (ticks == 0)
-                {
-                    if (Log.DebuggingEnabled) Log.Trace("LiveTradingDataFeed.GetNextTicksEnumerator(): Sleeping...");
-                    Thread.Sleep(1);
-                }
-                if (DateTime.UtcNow > next)
-                {
-                    Log.Trace("LiveTradingDataFeed.GetNextTicksEnumerator(): Ticks/sec: {0}", count);
-                    next = DateTime.UtcNow.AddSeconds(1);
-                    count = 0;
-                }
+                if (ticks == 0) Thread.Sleep(1);
             }
         }
 

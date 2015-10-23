@@ -189,8 +189,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <remarks> This function only return after <see cref="Stop"/> is called </remarks>
         private void ConsumeEnumerators()
         {
-            Log.Trace("BaseDataExchange.ConsumeEnumerators({0}): Begin, sleep interval: {1}", _name, _sleepInterval);
-
             while (true)
             {
                 if (_cancellationTokenSource.IsCancellationRequested)
