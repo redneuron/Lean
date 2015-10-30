@@ -715,13 +715,14 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             {
                 _disconnected1100Fired = true;
 
-                // wait a minute and see if we've been reconnected
-                Task.Delay(TimeSpan.FromMinutes(15)).ContinueWith(task => TryWaitForReconnect());
+                // begin the try wait logic
+                TryWaitForReconnect();
             }
             else if ((int) e.ErrorCode == 1102)
             {
                 // we've reconnected
                 _disconnected1100Fired = false;
+                OnMessage(BrokerageMessageEvent.Reconnected(e.ErrorMsg));
             }
 
             if (InvalidatingCodes.Contains((int)e.ErrorCode))
@@ -749,7 +750,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             if (_disconnected1100Fired && !IsWithinScheduledServerResetTimes())
             {
                 // if we were disconnected and we're nothing within the reset times, send the error event
-                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Error, -1, "Connection with Interactive Brokers lost. " +
+                OnMessage(BrokerageMessageEvent.Disconnected("Connection with Interactive Brokers lost. " +
                     "This could be because of internet connectivity issues or a log in from another location."
                     ));
             }
@@ -773,7 +774,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 _accountProperties[e.Currency + ":" + e.Key] = e.Value;
 
                 // we want to capture if the user's cash changes so we can reflect it in the algorithm
-                if (e.Key == AccountValueKeys.NetLiquidationByCurrency && e.Currency != "BASE")
+                if (e.Key == AccountValueKeys.CashBalance && e.Currency != "BASE")
                 {
                     var cashBalance = decimal.Parse(e.Value, CultureInfo.InvariantCulture);
                     _cashBalances.AddOrUpdate(e.Currency, cashBalance);
@@ -1252,8 +1253,8 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
             else
             {
                 var timeOfDay = time.TimeOfDay;
-                // from 11:45 -> 12:45 is the IB reset times, we'll go from 11:30->1am for safety
-                result = timeOfDay > new TimeSpan(11, 30, 0) || timeOfDay < new TimeSpan(1, 0, 0);
+                // from 11:45 -> 12:45 is the IB reset times, we'll go from 11:00pm->1:30am for safety margin
+                result = timeOfDay > new TimeSpan(23, 0, 0) || timeOfDay < new TimeSpan(1, 30, 0);
             }
 
             Log.Trace("InteractiveBrokersBrokerage.IsWithinScheduledServerRestTimes(): " + result);

@@ -119,6 +119,7 @@ namespace QuantConnect.Lean.Engine.Setup
                     //Set the limits on the algorithm assets (for local no limits)
                     algorithm.SetAssetLimits(999, 999, 999);
                     algorithm.SetMaximumOrders(int.MaxValue);
+                    algorithm.SetLiveMode(false);
                     //Set the source impl for the event scheduling
                     algorithm.Schedule.SetEventSchedule(realTimeHandler);
                     //Setup Base Algorithm:
@@ -164,18 +165,6 @@ namespace QuantConnect.Lean.Engine.Setup
             algorithm.PostInitialize();
 
             return initializeComplete;
-        }
-
-        /// <summary>
-        /// Error handlers in event of a brokerage error.
-        /// </summary>
-        /// <param name="results">Result handler for sending results on error.</param>
-        /// <param name="brokerage">Brokerage instance</param>
-        /// <remarks>Not used for local setup.</remarks>
-        /// <returns>Boolean true on successfully setting up local algorithm</returns>
-        public bool SetupErrorHandler(IResultHandler results, IBrokerage brokerage)
-        {
-            return true;
         }
 
         /// <summary>

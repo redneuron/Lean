@@ -223,6 +223,9 @@ namespace QuantConnect.Lean.Engine
                     });
                     algorithm.HistoryProvider = _algorithmHandlers.HistoryProvider;
 
+                    // initialize the default brokerage message handler
+                    algorithm.BrokerageMessageHandler = new DefaultBrokerageMessageHandler(algorithm, job, _algorithmHandlers.Results, _systemHandlers.Api);
+
                     //Initialize the internal state of algorithm and job: executes the algorithm.Initialize() method.
                     initializeComplete = _algorithmHandlers.Setup.Setup(algorithm, out brokerage, job, _algorithmHandlers.Results, _algorithmHandlers.Transactions, _algorithmHandlers.RealTime);
 
@@ -255,7 +258,6 @@ namespace QuantConnect.Lean.Engine
 
                     //Set algorithm as locked; set it to live mode if we're trading live, and set it to locked for no further updates.
                     algorithm.SetAlgorithmId(job.AlgorithmId);
-                    algorithm.SetLiveMode(_liveMode);
                     algorithm.SetLocked();
 
                     //Wire up the universe selection event handler before kicking off the data feed
@@ -267,8 +269,8 @@ namespace QuantConnect.Lean.Engine
                     _algorithmHandlers.Transactions.Initialize(algorithm, brokerage, _algorithmHandlers.Results);
                     _algorithmHandlers.RealTime.Setup(algorithm, job, _algorithmHandlers.Results, _systemHandlers.Api);
 
-                    //Set the error handlers for the brokerage asynchronous errors.
-                    _algorithmHandlers.Setup.SetupErrorHandler(_algorithmHandlers.Results, brokerage);
+                    // wire up the brokerage message handler
+                    brokerage.Message += (sender, message) => algorithm.BrokerageMessageHandler.Handle(message);
 
                     //Send status to user the algorithm is now executing.
                     _algorithmHandlers.Results.SendStatusUpdate(job.AlgorithmId, AlgorithmStatus.Running);

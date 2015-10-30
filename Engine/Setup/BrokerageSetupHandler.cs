@@ -352,34 +352,6 @@ namespace QuantConnect.Lean.Engine.Setup
         }
 
         /// <summary>
-        /// Setup the error handler for the brokerage errors.
-        /// </summary>
-        /// <param name="results">Result handler.</param>
-        /// <param name="brokerage">Brokerage endpoint.</param>
-        /// <returns>True on successfully setting up the error handlers.</returns>
-        public bool SetupErrorHandler(IResultHandler results, IBrokerage brokerage)
-        {
-            brokerage.Message += (sender, message) =>
-            {
-                // based on message type dispatch to result handler
-                switch (message.Type)
-                {
-                    case BrokerageMessageType.Information:
-                        results.DebugMessage("Brokerage Info: " + message.Message);
-                        break;
-                    case BrokerageMessageType.Warning:
-                        results.ErrorMessage("Brokerage Warning: " + message.Message);
-                        break;
-                    case BrokerageMessageType.Error:
-                        results.ErrorMessage("Brokerage Error: " + message.Message);
-                        _algorithm.RunTimeError = new Exception(message.Message);
-                        break;
-                }
-            };
-            return true;
-        }
-
-        /// <summary>
         /// Adds initializaion error to the Errors list
         /// </summary>
         /// <param name="message">The error message to be added</param>

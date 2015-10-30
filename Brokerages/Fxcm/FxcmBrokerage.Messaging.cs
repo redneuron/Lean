@@ -88,7 +88,7 @@ namespace QuantConnect.Brokerages.Fxcm
                 throw new ArgumentException("FxcmBrokerage.LoadAccounts(): The account id is invalid: " + _accountId);
 
             // Hedging MUST be disabled on the account
-            if (_accounts[_accountId].getParties().getFXCMPositionMaintenance() != "N")
+            if (_accounts[_accountId].getParties().getFXCMPositionMaintenance() == "Y")
             {
                 throw new NotSupportedException("FxcmBrokerage.LoadAccounts(): The Lean engine does not support accounts with Hedging enabled. Please contact FXCM support to disable Hedging.");
             }
@@ -121,9 +121,23 @@ namespace QuantConnect.Brokerages.Fxcm
         }
 
         /// <summary>
+        /// Provides as public access to this data without requiring consumers to reference
+        /// IKVM libraries
+        /// </summary>
+        public List<Tick> GetBidAndAsk(List<string> fxcmSymbols)
+        {
+            return GetQuotes(fxcmSymbols).Select(x => new Tick
+            {
+                Symbol = x.getInstrument().getSymbol(),
+                BidPrice = (decimal) x.getBidClose(),
+                AskPrice = (decimal) x.getAskClose()
+            }).ToList();
+        }
+
+        /// <summary>
         /// Gets the quotes for the symbol
         /// </summary>
-        public List<MarketDataSnapshot> GetQuotes(List<string> fxcmSymbols)
+        private List<MarketDataSnapshot> GetQuotes(List<string> fxcmSymbols)
         {
             // get current quotes for the instrument
             var request = new MarketDataRequest();

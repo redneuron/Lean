@@ -1,4 +1,4 @@
-/*
+﻿/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  * 
@@ -16,33 +16,15 @@
 namespace QuantConnect.Brokerages
 {
     /// <summary>
-    /// Specifies the type of message received from an IBrokerage implementation
+    /// Provides an plugin point to allow algorithms to directly handle the messages
+    /// that come from their brokerage
     /// </summary>
-    public enum BrokerageMessageType
+    public interface IBrokerageMessageHandler
     {
         /// <summary>
-        /// Informational message
+        /// Handles the message
         /// </summary>
-        Information,
-
-        /// <summary>
-        /// Warning message
-        /// </summary>
-        Warning,
-
-        /// <summary>
-        /// Fatal error message, the algo will be stopped
-        /// </summary>
-        Error,
-
-        /// <summary>
-        /// Brokerage reconnected with remote server
-        /// </summary>
-        Reconnect,
-
-        /// <summary>
-        /// Brokerage disconnected from remote server
-        /// </summary>
-        Disconnect
+        /// <param name="message">The message to be handled</param>
+        void Handle(BrokerageMessageEvent message);
     }
 }

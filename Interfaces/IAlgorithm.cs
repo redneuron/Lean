@@ -81,6 +81,16 @@ namespace QuantConnect.Interfaces
         }
 
         /// <summary>
+        /// Gets the brokerage message handler used to decide what to do
+        /// with each message sent from the brokerage
+        /// </summary>
+        IBrokerageMessageHandler BrokerageMessageHandler
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Notification manager for storing and processing live event messages
         /// </summary>
         NotificationManager Notify
